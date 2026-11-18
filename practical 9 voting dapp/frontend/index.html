@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Voting DApp</title>
+</head>
+<body>
+
+    <h1>Voting DApp</h1>
+
+    <h2>Candidate 1</h2>
+    <button onclick="vote1()">Vote Candidate 1</button>
+    <p>Votes: <span id="votes1">0</span></p>
+
+    <h2>Candidate 2</h2>
+    <button onclick="vote2()">Vote Candidate 2</button>
+    <p>Votes: <span id="votes2">0</span></p>
+
+    <p id="status">Connecting to MetaMask...</p>
+
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.4/dist/web3.min.js"></script>
+    <script src="app.js"></script>
+
+</body>
+</html>

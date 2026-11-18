@@ -1,0 +1,242 @@
+﻿Practical 9: Voting DApp using Truffle, Ganache and MetaMask
+A complete step-by-step guide for building and deploying a decentralized Voting DApp on Windows.
+
+What you will build
+A smart contract with two state variables (candidate1Votes, candidate2Votes) and functions to vote for Candidate 1 or Candidate 2.
+Unlike read-only contracts, casting a vote modifies blockchain state, requiring MetaMask to sign transactions with .send({ from: account }) and spend gas. The vote counts are dynamically read and displayed on the web page.
+
+Flow to remember (useful for viva):
+Write contract (voting.sol) -> Compile -> Migrate (deploy) to Ganache -> Copy contract address
+-> Paste in app.js -> Open frontend with Live Server -> Connect MetaMask -> Click Vote -> Confirm transaction in MetaMask -> Vote count updates!
+
+==============================================================================
+Part A: Tools & Setup
+==============================================================================
+
+Tools and what each does:
+- Ganache: Personal local Ethereum blockchain (HTTP://127.0.0.1:7545, Network ID 5777) with 10 accounts with 100 fake ETH each.
+- MetaMask: Browser extension wallet that stores private keys, manages accounts, and signs transactions.
+- Truffle: Development framework to compile, deploy (migrate), and test Ethereum smart contracts.
+- Web3.js: JavaScript library connecting the frontend HTML interface to the blockchain via window.ethereum.
+- VS Code & Live Server: Code editor and local HTTP server (port 5500) to serve the DApp frontend.
+
+Step 1: Start Ganache
+1. Open Ganache desktop application.
+2. Click QUICKSTART (Ethereum).
+3. Ensure RPC SERVER displays HTTP://127.0.0.1:7545 and NETWORK ID is 5777.
+4. Keep Ganache running in the background.
+
+Step 2: MetaMask Network & Account Setup
+1. Open MetaMask in Chrome/Firefox.
+2. Select network dropdown -> Add network -> Add a network manually:
+   - Network Name: Ganache Local
+   - RPC URL: http://127.0.0.1:7545
+   - Chain ID: 1337
+   - Currency symbol: ETH
+3. Click Save and switch to Ganache Local.
+4. In Ganache, click the key icon on the first account and copy the PRIVATE KEY.
+5. In MetaMask, click account menu -> Add account or hardware wallet -> Import account -> paste key -> Import.
+6. The balance will display 100 ETH.
+
+==============================================================================
+Part B: Truffle Project & Smart Contract
+==============================================================================
+
+Step 3: Initialize Truffle Project
+In PowerShell / terminal:
+   mkdir practical9-truffle-voting
+   cd practical9-truffle-voting
+   npx truffle init
+
+Step 4: Write Smart Contract (contracts/voting.sol)
+Create contracts/voting.sol:
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract Voting {
+    uint public candidate1Votes;
+    uint public candidate2Votes;
+
+    function voteCandidate1() public {
+        candidate1Votes++;
+    }
+
+    function voteCandidate2() public {
+        candidate2Votes++;
+    }
+}
+
+Explanation:
+- candidate1Votes & candidate2Votes: Public state variables automatically generating getter functions.
+- voteCandidate1() & voteCandidate2(): State-changing functions that increment vote counters. Because they write data to the blockchain, they require a signed transaction and gas.
+
+Step 5: Write Migration Script (migrations/1_deploy.js)
+Create migrations/1_deploy.js:
+
+const a = artifacts.require("Voting");
+
+module.exports = function (deployer) {
+    deployer.deploy(a);
+};
+
+Step 6: Configure truffle-config.js
+Edit truffle-config.js in project root:
+
+module.exports = {
+  networks: {
+    development: {
+      host: "127.0.0.1",
+      port: 7545,
+      network_id: "*"
+    }
+  },
+  compilers: {
+    solc: {
+      version: "0.8.21",
+      settings: {
+        optimizer: {
+          enabled: false,
+          runs: 200
+        },
+        evmVersion: "paris"
+      }
+    }
+  }
+};
+
+Note: evmVersion "paris" is required to prevent "invalid opcode" on Ganache.
+
+Step 7: Compile Contract
+Run in terminal:
+   npx truffle compile
+
+Expected output:
+   Compiled successfully using solc 0.8.21. Generates build/contracts/Voting.json.
+
+Step 8: Deploy (Migrate) to Ganache
+Run in terminal:
+   npx truffle migrate
+
+Expected output:
+   Deploying 'Voting'
+   > contract address: 0xe1041D34D638d54eeEDdBF36fCeFd29F35aB6d81  <-- COPY THIS
+   > gas used:         ...
+   > total cost:       ... ETH
+
+Copy the deployed contract address.
+
+==============================================================================
+Part C: Frontend & Testing
+==============================================================================
+
+Step 9: Create Frontend Files
+In the project root, create a frontend folder containing index.html and app.js.
+
+frontend/index.html:
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Voting DApp</title>
+</head>
+<body>
+
+    <h1>Voting DApp</h1>
+
+    <h2>Candidate 1</h2>
+    <button onclick="vote1()">Vote Candidate 1</button>
+    <p>Votes: <span id="votes1">0</span></p>
+
+    <h2>Candidate 2</h2>
+    <button onclick="vote2()">Vote Candidate 2</button>
+    <p>Votes: <span id="votes2">0</span></p>
+
+    <p id="status">Connecting to MetaMask...</p>
+
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.4/dist/web3.min.js"></script>
+    <script src="app.js"></script>
+
+</body>
+</html>
+
+frontend/app.js:
+(Paste your contract address from Step 8 on the first line)
+
+const contractAddress = "0xe1041D34D638d54eeEDdBF36fCeFd29F35aB6d81";
+
+const abi = [
+    { "inputs": [], "name": "candidate1Votes", "outputs": [{ "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+    { "inputs": [], "name": "candidate2Votes", "outputs": [{ "name": "", "type": "uint256" }], "stateMutability": "view", "type": "function" },
+    { "inputs": [], "name": "voteCandidate1", "outputs": [], "stateMutability": "nonpayable", "type": "function" },
+    { "inputs": [], "name": "voteCandidate2", "outputs": [], "stateMutability": "nonpayable", "type": "function" }
+];
+
+let contract;
+let account;
+
+async function connectWallet() {
+    const accounts = await window.ethereum.request({ method: "eth_requestAccounts" });
+    account = accounts[0];
+
+    const web3 = new Web3(window.ethereum);
+    contract = new web3.eth.Contract(abi, contractAddress);
+
+    document.getElementById("status").innerText = "Connected: " + account;
+    updateVotes();
+}
+
+async function updateVotes() {
+    document.getElementById("votes1").innerText = await contract.methods.candidate1Votes().call();
+    document.getElementById("votes2").innerText = await contract.methods.candidate2Votes().call();
+}
+
+async function vote1() {
+    await contract.methods.voteCandidate1().send({ from: account });
+    updateVotes();
+    document.getElementById("status").innerText = "Vote cast for Candidate 1!";
+}
+
+async function vote2() {
+    await contract.methods.voteCandidate2().send({ from: account });
+    updateVotes();
+    document.getElementById("status").innerText = "Vote cast for Candidate 2!";
+}
+
+connectWallet();
+
+Step 10: Run and Vote
+1. In VS Code, right-click frontend/index.html and click Open with Live Server.
+2. The browser opens http://127.0.0.1:5500/frontend/index.html.
+3. MetaMask will prompt to connect: select your imported Ganache account and click Connect.
+4. Click "Vote Candidate 1". MetaMask pops up asking to confirm the transaction.
+5. Click Confirm. In a few seconds:
+   - Status updates to "Vote cast for Candidate 1!"
+   - Candidate 1 Votes counter increments to 1.
+6. Click "Vote Candidate 2", confirm transaction in MetaMask, and observe Candidate 2 votes increment to 1.
+
+==============================================================================
+Troubleshooting & Common Fixes
+==============================================================================
+Problem                                              Fix
+-----------------------------------------------------------------------------------------------------------------------------
+MetaMask pop-up does not appear on Vote              Check that MetaMask extension is unlocked and on Ganache Local network.
+"Nonce too high" or transaction stuck                In MetaMask: Settings > Advanced > Clear activity and nonce data.
+MetaMask shows "insufficient funds for gas"         Ensure you imported the Ganache account with 100 ETH, not a 0 ETH account.
+Votes do not update after transaction confirms       Check browser Console (F12) to verify contractAddress and ABI in app.js match.
+"invalid opcode" during migrate                      Set evmVersion: "paris" in truffle-config.js and run npx truffle migrate --reset.
+
+==============================================================================
+Quick Viva Revision (Voting DApp)
+==============================================================================
+Q: Why do vote functions use .send() instead of .call()?
+A: .send() sends a state-changing transaction to the blockchain, modifies storage (increments vote count), requires a wallet signature, and costs gas. In contrast, .call() is read-only (used in updateVotes) and is completely free.
+
+Q: What is the stateMutability of voteCandidate1?
+A: nonpayable (it modifies contract state without accepting Ether).
+
+Q: What is the stateMutability of candidate1Votes?
+A: view (it reads contract state from the blockchain without modifying it, so calling it requires no gas).
+
+Q: How does the frontend know which account is voting?
+A: window.ethereum.request({ method: "eth_requestAccounts" }) fetches the connected account from MetaMask, which is passed as { from: account } in the .send() call.
