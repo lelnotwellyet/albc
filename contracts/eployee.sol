@@ -16,4 +16,7 @@ contract employeeC{
         return (s1.eid,s1.ename,s1.esal,s1.edes);
 
     }
+    function updatesal(uint i, uint ns) public{ 
+            e[i].esal=ns; 
+} 
 }
