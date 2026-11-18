@@ -1,0 +1,183 @@
+﻿Proof of Thought
+Complete Presentation Script
+Part 1 (Intro to Polling) is the original script. Part 2 (Feed speed to Closing) is the continuation in the
+same style.
+
+PART 1: Introduction to Live Updates
+
+The idea
+Our project is Proof of Thought. Think of it as a patent office on the blockchain, for ideas.
+You write a thought, and the app turns it into an NFT on the blockchain. That gives a
+permanent, public, timestamped record that you published this exact text at this time, and
+you own it and can even sell it. It's not a legal patent, but it's proof of authorship that
+nobody, including us, can change or delete.
+We built it on Solana rather than Ethereum because Solana confirms transactions in about
+400 milliseconds and costs a fraction of a cent, while minting on Ethereum can cost several
+dollars. Solana also has first-class support for mobile apps through the Solana Mobile Stack.
+Now, how it works.
+
+Connecting the wallet
+When the user opens the app, the first step is connecting a wallet: an app like Phantom or
+Solflare that holds the user's private key.
+When you tap Connect Wallet, we use MWA, the Mobile Wallet Adapter. It's a library from
+Solana Mobile that lets our app talk to the wallet app on the same phone.
+- MWA uses an Android Intent to open the wallet app.
+- The two apps then set up a secure, encrypted connection on the phone.
+- Our app asks for permission (authorize), the user taps Approve in the wallet, and the
+wallet sends back only the public key, the user's address.
+The private key never leaves the wallet. Our app never sees it. Later, whenever
+something needs signing, like minting or placing a bid, MWA sends the transaction to the
+wallet, the user approves, and the wallet sends back only the signature.
+Separately, our app connects to the Solana network itself, through an RPC endpoint, the
+Solana devnet server at api.devnet.solana.com. Our app uses it to read data and to send the
+signed transactions. So: MWA handles identity and signing; RPC handles talking to
+the blockchain. We use devnet, Solana's test network, so no real money is involved.
+
+Writing a thought
+Once connected, the user taps Write a Thought and types it, up to 280 characters. The app
+checks the text is valid: at least 3 characters and at least one letter or number.
+Then two steps happen.
+Step 1, upload to IPFS. The app makes a small JSON file with the thought, the author's
+wallet address and the time, and uploads it to IPFS through Pinata. IPFS gives back a CID, an
+address made from a hash of the content. If even one letter changed, the CID would change,
+so the content can't be secretly edited.
+Step 2, mint the NFT. Using Metaplex, Solana's NFT standard, the app builds one
+transaction that creates the NFT:
+- supply exactly 1,
+- symbol POT,
+- its metadata points to the IPFS CID,
+- the user is recorded as the verified creator,
+- a 5% royalty is set.
+This transaction is executed by smart contracts already deployed on Solana. On Solana these
+are called programs. The SPL Token program creates the token, and the Metaplex Token
+Metadata program creates its metadata and locks the supply at 1. These are the standard,
+audited programs that almost every Solana NFT uses. Our app builds the instructions; the
+programs do the work on-chain.
+MWA sends it to the wallet, the user approves once, our app sends it to Solana, and in about
+a second it's confirmed. The thought is now an NFT in the user's wallet, and we show a link to
+Solana Explorer so anyone can verify it.
+
+Feed
+The public feed uses the DAS (Digital Asset Standard) API, which provides additional RPC
+methods for querying digital assets on Solana Devnet. We enable it using the dasApi() plugin.
+We call getAssetsByCreator with our fixed hub address. Every thought NFT includes this
+address as a creator with a 0% share, so one query can discover all thoughts minted through
+our app. We also call getAssetsByOwner to retrieve assets owned by the connected wallet.
+Both queries run concurrently using Promise.allSettled().
+We then fetch the IPFS metadata for 10 thoughts at a time, using Promise.all() to download
+multiple metadata files concurrently and make the feed load faster.
+For live updates, we use polling. useFocusEffect starts setInterval timers when the feed
+screen becomes active. Every 15 seconds, we refresh bids and usernames; every 60
+seconds, we also refresh ownership and newly minted thoughts. When the user leaves the
+screen, clearInterval() stops the timers, saving unnecessary network requests.
+
+PART 2: Feed Speed to Closing
+
+Feed: speed and verification
+To make the feed fast, we use caching. Once a thought's text is downloaded from IPFS, we
+save it on the phone forever, because IPFS content can never change. The whole feed list is
+also cached for 5 minutes, so when you reopen the app it appears instantly. While it loads,
+we show skeleton cards so the screen never looks empty.
+Each card also has a VERIFIED badge. For that, we calculate each NFT's metadata account
+address, which is a PDA, and check that the account really exists on Solana. Instead of
+checking thoughts one by one, we check all 10 in a single request using
+getMultipleAccountsInfo. To be precise about what this proves: the badge shows the NFT
+exists on-chain, and the integrity of the text comes from the IPFS CID stored in that on-chain
+link.
+The user can also search by the thought's text, by @username, or by wallet address, and sort
+by newest or oldest. This filtering happens on the phone.
+
+Usernames
+Every user gets a unique username. When a new wallet connects, the app asks them to
+pick one, 3 to 16 letters, digits or underscores.
+There is no database for this. The username is saved on the blockchain as a memo, a small
+text message like POT_USERNAME:shanks, signed by the user's wallet. It is sent using Solana's
+built-in Memo program and tagged with our fixed hub address, so it's easy to find later.
+To show usernames, the app reads all these memos from the hub's transaction history and
+replays them from oldest to newest. Whoever claimed a name first keeps it, so if
+someone tries "Shanks" later, it's ignored. We also check who actually signed each memo, so
+nobody can claim a name on behalf of someone else. And before you claim, the app checks
+the chain first, so if the name is taken, it tells you immediately and never even opens the
+wallet. Because every phone reads the same blockchain, everyone sees the same names.
+
+Thought detail page
+When you tap a thought, it opens the detail page. It shows the full text, the verified badge,
+the author, the current owner, the time, the 5% royalty tag, the bidding panel, and a link to
+Solana Explorer. Tapping the author or owner opens their profile.
+The author never changes, but the owner changes whenever someone buys the thought.
+We get the current owner from the DAS API using getAsset. The owner, bids and usernames
+load in parallel, and this page refreshes every 10 seconds so new bids appear live.
+
+Bidding: our own smart contract
+For selling, we use bidding. For this we wrote our own smart contract in Rust using the
+Anchor framework and deployed it on Solana devnet. Everything before this used existing
+programs, but this one is ours.
+First, the owner taps Open for Bids and can set a minimum price. The contract checks that
+this person really holds the NFT, and it reads the original author from the NFT's Metaplex
+metadata. This matters because the royalty must always go to the verified author, and the
+seller can't fake that. The contract creates an Auction account, and the NFT stays in the
+owner's wallet.
+Then a buyer places a bid. The bid's SOL leaves the buyer's wallet and gets locked inside an
+account owned by the contract. This is called escrow. The money can't be moved by anyone
+directly. It only moves when the owner accepts the bid, or when the buyer withdraws it. If you
+want to bid higher, only the difference is locked. The rules are enforced by the contract:
+owners can't bid on their own thought, and bids must meet the minimum.
+Every phone reads all the auctions and bids from the contract in a single call. The highest bid
+is highlighted, and the list refreshes about every 15 seconds.
+If a buyer changes their mind, or gets outbid, they can tap Withdraw at any time and get all
+their SOL back.
+When the owner taps Accept, the contract does everything in one atomic transaction:
+- the NFT goes to the buyer,
+- the SOL goes to the seller,
+- and on a resale, 5% goes to the original author.
+Atomic means all or nothing. So the buyer can never get the NFT without paying, and the
+seller can never take the money without handing over the NFT. No trust is needed
+between them. Only the seller can accept, and if the owner wants to stop, they can close
+bidding and everyone just withdraws.
+A simple way to think about it: it's a locked box. The buyer puts money in when they bid,
+and when the owner accepts, the box swaps the NFT and the money at the same instant.
+
+Royalties
+Royalty means the original author keeps earning. On the first sale, the seller is the author, so
+they get the full amount. But when the buyer resells it later, 5% automatically goes back
+to the original author. For example, if it's resold for 1 SOL, the seller receives 0.95 and the
+author receives 0.05.
+The contract calculates and pays this inside the sale itself, using the author recorded in the
+NFT's metadata, so it can't be skipped or redirected. The NFT's metadata also records the 5%
+royalty, so other marketplaces can read it too.
+
+Profile and My Thoughts
+Each user has a profile, which we call the Neural ID. It shows the username, wallet, how
+many thoughts were minted, how many sales happened, how much SOL was earned, and the
+royalties collected. None of this is stored on our side. Minted comes from the DAS API, and
+sales, earnings and royalties come from the wallet's blockchain history, where each sale
+leaves a small record memo.
+Based on this, the user gets a rank: New Mind, Thinker, Visionary, Oracle, and Legend. It is
+calculated purely from on-chain data, so everyone sees the same rank for the same wallet.
+In My Thoughts there are two tabs. Owned shows thoughts in your wallet right now,
+including ones you bought. Sold shows thoughts you wrote that someone else owns now,
+with who owns it and how much royalty you've earned from it.
+
+Testing
+We tested the contract first on a local Solana test chain, where all 24 checks passed, and
+then on devnet with real transactions, where all 10 checks passed. Cases like low bids, an
+owner bidding on their own thought, someone other than the seller trying to accept, or a fake
+creator account are all rejected, and when something fails, nothing moves.
+
+Limitations and future work
+Some limitations. It runs on devnet, so the SOL has no real value. The contract has not been
+professionally audited. We use polling rather than live push updates, because devnet's free
+WebSocket connection is rate-limited and unreliable. The Pinata key is currently inside the
+app, which would need a safer setup in production. And what the app proves is who minted
+this exact text first. It does not prove who first had the idea in real life.
+In future, we plan to get the contract audited and move to mainnet. Our contract already has
+a function that stores the thought's SHA-256 hash on-chain for stronger verification, but the
+app doesn't call it yet. We'd also add live updates with WebSockets or an indexer, and use
+multiple IPFS gateways for reliability.
+
+Closing
+So overall: the user connects a wallet, picks a username, writes a thought, it's stored on IPFS,
+minted as an NFT, and shown in the public feed. Others can bid with their money locked in
+escrow, the sale happens in one atomic step, and the original author keeps earning 5% on
+every resale. And all of this runs without any server of our own. The blockchain and IPFS
+are our database. Thank you.
