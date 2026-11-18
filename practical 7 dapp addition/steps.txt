@@ -139,8 +139,7 @@ module.exports = {
   },
 };
 
-Note: Port 7545 must match Ganache exactly. Ganache Quickstart on some versions uses 8545, so
-check the RPC SERVER shown in Ganache.
+Note: IMPORTANT - Instead of 8545, we have to use port 7545 (HTTP://127.0.0.1:7545) to match the Ganache UI RPC Server exactly. Ensure port 7545 is used in truffle-config.js, MetaMask, and app.js.
 
 Step 9: Compile the contract
 npx truffle compile
@@ -323,3 +322,4 @@ A: build/contracts/addition.json.
 
 Q: Can you edit a deployed contract?
 A: No. You deploy a new version at a new address.
+
