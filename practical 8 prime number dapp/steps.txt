@@ -1,0 +1,265 @@
+﻿Practical 8: Prime Number DApp with Truffle and Ganache (Windows)
+Nov 19, 2026 · @arvind
+
+This practical deploys a Prime smart contract to Ganache with Truffle and checks numbers from a web page through MetaMask. Output: 3 gives "3 is a Prime Number.", 8 gives "8 is not a Prime Number."
+
+==============================================================================
+Setup
+==============================================================================
+If you already did Practical 7 with Ganache, Steps 1, 3 and 4 are done: just start Ganache (Step 2) and check MetaMask is on Ganache with the 100 ETH account.
+
+Step 1: Install the software (skip what you already have)
+1. Node.js: download the LTS version from https://nodejs.org, install it with "Add to PATH" ticked, and restart the PC.
+2. VS Code: install from https://code.visualstudio.com.
+3. VS Code extensions: press Ctrl+Shift+X and install Solidity (Juan Blanco) and Live Server (Ritwick Dey).
+4. Ganache: download from https://archive.trufflesuite.com/ganache/ and install.
+5. MetaMask: add the extension to Chrome or Firefox from https://metamask.io/download and create a wallet.
+6. Truffle: open PowerShell and run the commands below. The second should show Truffle v5.x.
+   npm install -g truffle
+   npx truffle version
+
+If PowerShell says running scripts is disabled, run this once and type Y:
+   Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+
+Step 2: Start Ganache
+1. Open Ganache from the Start menu.
+2. Click QUICKSTART (Ethereum).
+3. Check the top bar: RPC SERVER is HTTP://127.0.0.1:7545 and NETWORK ID is 5777.
+4. Keep Ganache open until you finish.
+
+Step 3: Add the Ganache network to MetaMask
+1. Click the MetaMask fox and unlock it.
+2. Click the network dropdown at the top left.
+3. Click Add a custom network (older versions: Add network, then Add a network manually).
+4. Fill in the form:
+   Field                Type exactly
+   -------------------------------------------------
+   Network name         Ganache
+   Default RPC URL      http://127.0.0.1:7545
+   Chain ID             1337
+   Currency symbol      ETH
+   Block explorer URL   leave empty
+5. Click Save, then select Ganache in the network dropdown.
+
+Step 4: Import a Ganache account into MetaMask
+1. In Ganache, on the ACCOUNTS tab, click the key icon at the right end of the first account.
+2. Copy the PRIVATE KEY from the popup.
+3. In MetaMask, click the account name at the top.
+4. Click Add account or hardware wallet, then Import account.
+5. Paste the key and click Import.
+6. The account now shows 100 ETH.
+
+==============================================================================
+Build and deploy
+==============================================================================
+
+Step 5: Create the Truffle project
+   cd C:\Users\HP\blockchain
+   mkdir prac8-truffle
+   cd prac8-truffle
+   npx truffle init
+   code .
+
+VS Code opens with the folders contracts, migrations, test and the file truffle-config.js.
+
+Step 6: Write the contract: contracts\prime.sol
+Right-click the contracts folder, choose New File, name it prime.sol, paste, and press Ctrl+S.
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.21;
+
+contract Prime {
+    function isPrime(uint n) public pure returns (bool) {
+        if (n < 2) {
+            return false;
+        }
+        for (uint i = 2; i * i <= n; i++) {
+            if (n % i == 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+}
+
+Step 7: Write the migration: migrations\1_deploy.js
+The file name must start with a number. Note: the reference file says artifacts.require("addition"), copied from Practical 7. That fails here; it must be "Prime", the contract name.
+
+const a = artifacts.require("Prime");
+
+module.exports = function (deployer) {
+    deployer.deploy(a);
+};
+
+Step 8: Edit truffle-config.js
+Open truffle-config.js, press Ctrl+A then Delete, paste this, and press Ctrl+S.
+
+module.exports = {
+  networks: {
+    development: {
+      host: "127.0.0.1",
+      port: 7545,
+      network_id: "*"
+    }
+  },
+
+  compilers: {
+    solc: {
+      version: "0.8.21",
+      settings: {
+        optimizer: {
+          enabled: false,
+          runs: 200
+        },
+        evmVersion: "paris"
+      }
+    }
+  }
+};
+
+Note: evmVersion "paris" is required; without it Ganache gives an invalid opcode error.
+
+Step 9: Compile
+Open the VS Code terminal (Ctrl+`) and run:
+   npx truffle compile
+
+Expected output:
+Compiling your contracts...
+> Compiling .\contracts\prime.sol
+> Artifacts written to C:\Users\HP\blockchain\prac8-truffle\build\contracts
+> Compiled successfully using:
+   - solc: 0.8.21
+
+Step 10: Deploy to Ganache
+   npx truffle migrate
+
+Expected output:
+Starting migrations...
+> Network name:    'development'
+> Network id:      5777
+
+1_deploy.js
+===========
+   Deploying 'Prime'
+   -----------------
+   > transaction hash:    0x...
+   > contract address:    0x5254C8C5fFE493B6ec92BE9dE0957E8564E896c5   <-- COPY THIS
+   > account:             0x...
+   > balance:             99.99...
+
+Summary
+=======
+> Total deployments:   1
+
+Copy your contract address; it will differ from the example.
+
+==============================================================================
+Frontend and run
+==============================================================================
+
+Step 11: Create the frontend
+Right-click the empty area in Explorer (the project root), choose New Folder, and name it frontend. Create these two files inside it.
+
+frontend\index.html:
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Prime DApp</title>
+</head>
+<body>
+
+    <h1>Prime DApp</h1>
+
+    <input type="number" id="num" placeholder="Enter a number">
+    <button onclick="checkPrime()">Check Prime</button>
+
+    <p id="result"></p>
+
+    <script src="https://cdn.jsdelivr.net/npm/web3@4.16.0/dist/web3.min.js"></script>
+    <script src="app.js"></script>
+
+</body>
+</html>
+
+frontend\app.js:
+(Paste your contract address from Step 10 on the first line)
+
+const contractAddress = "PASTE_CONTRACT_ADDRESS_HERE";
+
+const contractABI = [
+    {
+        "inputs": [
+            { "name": "n", "type": "uint256" }
+        ],
+        "name": "isPrime",
+        "outputs": [
+            { "name": "", "type": "bool" }
+        ],
+        "stateMutability": "pure",
+        "type": "function"
+    }
+];
+
+async function checkPrime() {
+    await window.ethereum.request({ method: "eth_requestAccounts" });
+
+    const web3 = new Web3(window.ethereum);
+    const contract = new web3.eth.Contract(contractABI, contractAddress);
+
+    const num = document.getElementById("num").value;
+
+    const result = await contract.methods.isPrime(num).call();
+
+    if (result) {
+        document.getElementById("result").innerText = num + " is a Prime Number.";
+    } else {
+        document.getElementById("result").innerText = num + " is not a Prime Number.";
+    }
+}
+
+Save both files with Ctrl+S. The final structure:
+prac8-truffle\
+├── build\contracts\Prime.json
+├── contracts\
+│   └── prime.sol
+├── frontend\
+│   ├── app.js
+│   └── index.html
+├── migrations\
+│   └── 1_deploy.js
+├── test\
+└── truffle-config.js
+
+Step 12: Run it and get the output
+1. Check MetaMask: the network is Ganache (1337) and the imported 100 ETH account is selected.
+2. In VS Code, right-click frontend\index.html and choose Open with Live Server. It opens at http://127.0.0.1:5500/frontend/index.html.
+3. Enter 3 and click Check Prime.
+4. The first time, MetaMask asks to connect: select your account and click Connect.
+5. Then enter 8 and click Check Prime.
+
+Output:
+Prime DApp
+[3] [Check Prime]
+3 is a Prime Number.
+
+Prime DApp
+[8] [Check Prime]
+8 is not a Prime Number.
+
+For the journal, take screenshots of Ganache, the migrate output and both results.
+
+==============================================================================
+Common problems and fixes
+==============================================================================
+Most errors come from the migration name, Ganache not running, MetaMask on the wrong network, or an old contract address.
+
+Problem                                                             Fix
+-----------------------------------------------------------------------------------------------------------------------------------------
+Could not find artifacts for addition                              The migration must say artifacts.require("Prime"), matching contract Prime
+running scripts is disabled                                         Run Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+invalid opcode during migrate                                       Check evmVersion "paris" in truffle-config.js, then run npx truffle migrate --reset
+Could not connect to your Ethereum client                           Ganache is not open, or its port is not 7545
+Check Prime does nothing, or missing revert data in Console (F12)   MetaMask is not on Ganache (1337), or the address in app.js is wrong; fix it and refresh
+Page does not connect to MetaMask                                   Open the page with Live Server, not by double-clicking
+Errors after reopening Ganache                                      Quickstart resets the chain: run npx truffle migrate --reset, paste the new address, import the new first account's key, and in MetaMask use Settings, Advanced, Clear activity tab data
