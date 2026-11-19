@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<!-- Tells the browser this is an HTML5 page -->
+<html>
+<body>
+    <!-- Page heading -->
+    <h1>Addition DApp</h1>
+    <!-- First number box. id="num1" lets app.js find it -->
+    <input type="number" id="num1">
+    <!-- Second number box -->
+    <input type="number" id="num2">
+    <!-- Button. When clicked it runs addNumbers() from app.js -->
+    <button onclick="addNumbers()">Add</button>
+    <!-- Empty paragraph where app.js shows the answer -->
+    <p id="result"></p>
+    <!-- Load the Web3 library (lets JavaScript talk to the blockchain) -->
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+    <!-- Load our own code. Must come AFTER Web3 -->
+    <script src="app.js"></script>
+</body>
+</html>

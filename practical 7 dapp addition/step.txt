@@ -1,0 +1,325 @@
+﻿Practical 7
+Addition DApp using Ganache, MetaMask and Truffle
+A complete step-by-step guide from scratch, with every line of code explained
+
+What you will build
+A smart contract with one function, add(a, b), that returns the sum of two numbers. You deploy it to a local
+blockchain (Ganache) using Truffle, then call it from a simple web page using Web3.js.
+
+Flow to remember (useful for viva):
+Write contract -> Compile -> Migrate (deploy) to Ganache -> Copy contract address
+-> Paste it in app.js -> Open frontend with Live Server -> Click Add -> Result
+
+Tools and what each does
+Tool        Purpose
+Ganache     Personal local blockchain. 10 test accounts with 100 fake ETH each.
+MetaMask    Browser wallet. Holds accounts and connects to networks.
+Node.js/npm Runs JavaScript tools and installs Truffle.
+Truffle     Framework to compile, deploy (migrate) and test contracts.
+VS Code     Code editor (with Solidity and Live Server extensions).
+Web3.js     JS library the web page uses to talk to the blockchain.
+
+==============================================================================
+Part A: Install the tools
+==============================================================================
+
+Step 1: Install the software
+- Node.js (LTS) from nodejs.org. Check with node --version.
+- Ganache desktop app (Truffle Suite). Install and open it.
+- MetaMask extension from the browser Add-ons store. Create a wallet and save the recovery phrase.
+- VS Code, then install two extensions: Solidity (Juan Blanco) and Live Server (Ritwick Dey).
+
+Step 2: Start Ganache
+- Open Ganache and click Quickstart.
+- Note the RPC SERVER shown at the top: HTTP://127.0.0.1:7545.
+- You will see 10 accounts, each with 100 ETH. Also note the Network ID (5777).
+Note: Keep Ganache open for the whole practical. If you close it, the blockchain is lost and you must
+redeploy.
+Screenshot to take: Ganache Accounts screen with the RPC server visible.
+
+Step 3: Add the Ganache network to MetaMask
+- MetaMask -> click the network dropdown -> Add network -> Add a network manually.
+- Network name: Ganache Local (any name).
+- RPC URL: http://127.0.0.1:7545
+- Chain ID: 1337
+- Currency symbol: ETH
+- Click Save. If it is not listed, enable Show test networks in MetaMask settings.
+Screenshot to take: the Edit network form filled in.
+
+Step 4: Import a Ganache account into MetaMask
+- In Ganache, click the key icon at the right of the first account. Copy the PRIVATE KEY.
+- In MetaMask: account menu -> Add wallet -> Import an account -> paste the key -> Import.
+- Make sure the Ganache network is selected. The balance should now show 100 ETH.
+Note: Ganache keys are only for this local chain. Never paste a real wallet key anywhere, and never use a
+Ganache key on a real network.
+Screenshots to take: the key popup in Ganache and the 100 ETH balance in MetaMask.
+
+==============================================================================
+Part B: Create the Truffle project
+==============================================================================
+
+Step 5: Install Truffle and initialise the project
+Open VS Code, open (or create) an empty folder, open the terminal (Ctrl + `) and run:
+node --version          # confirm Node.js is installed
+npm install -g truffle  # install Truffle globally (one time only)
+npx truffle init        # create the project skeleton in this folder
+
+truffle init creates:
+- contracts/ : your Solidity files (.sol)
+- migrations/ : deployment scripts
+- test/ : test files (not used here)
+- truffle-config.js : settings for networks and compiler
+
+Step 6: Write the smart contract
+Create the file contracts/addition.sol and paste:
+
+// SPDX-License-Identifier: MIT
+// ^ License label. Solidity shows a warning if it is missing.
+
+pragma solidity ^0.8.21;
+// ^ Compiler version. ^0.8.21 means 0.8.21 or higher, but below 0.9.0.
+
+contract addition {
+// ^ Defines the contract (like a class). The name "addition" must match
+// what the migration file requires.
+
+    function add(uint a, uint b) public pure returns (uint) {
+    // add -> name of the function
+    // (uint a, uint b) -> two unsigned integers (cannot be negative)
+    // public -> can be called from outside the contract
+    // pure -> does not read or write blockchain data, so
+    // calling it is free (no gas)
+    // returns (uint) -> gives back one unsigned integer
+
+        return a + b;
+        // Adds the two inputs and returns the result.
+        // Since Solidity 0.8, overflow automatically reverts.
+    }
+}
+
+Step 7: Write the migration (deployment script)
+Create migrations/1_deploy.js. The file name must start with a number because Truffle runs
+migrations in numeric order.
+
+// Load the compiled contract. The name is case-sensitive and must match
+// the contract name in addition.sol ("addition").
+const a = artifacts.require("addition");
+
+// Truffle calls this function when you run "truffle migrate".
+// "deployer" is a helper object provided by Truffle.
+module.exports = function (deployer) {
+    // Deploy the contract to the network (costs a small amount of gas).
+    deployer.deploy(a);
+};
+
+Step 8: Configure truffle-config.js
+Open truffle-config.js in the project root. Find the commented networks and compilers sections,
+uncomment them, and edit so they look like this:
+
+module.exports = {
+  networks: {
+    development: {
+      host: "127.0.0.1",     // Ganache runs on your own computer
+      port: 7545,            // Ganache port (same as in the RPC URL)
+      network_id: "*",       // Accept any network id
+    },
+  },
+  compilers: {
+    solc: {
+      version: "0.8.21",     // Exact Solidity compiler version
+      settings: {
+        optimizer: {
+          enabled: false,    // No optimisation (fine for learning)
+          runs: 200          // Only used when the optimizer is enabled
+        },
+        evmVersion: "paris"  // Avoids the PUSH0 opcode which older Ganache
+                             // does not support ("invalid opcode" error)
+      }
+    }
+  },
+};
+
+Note: IMPORTANT - Instead of 8545, we have to use port 7545 (HTTP://127.0.0.1:7545) to match the Ganache UI RPC Server exactly. Ensure port 7545 is used in truffle-config.js, MetaMask, and app.js.
+
+Step 9: Compile the contract
+npx truffle compile
+
+Expected output: Compiled successfully using solc 0.8.21. This creates
+build/contracts/addition.json containing the ABI and bytecode.
+Screenshot to take: successful compile output.
+
+Step 10: Deploy (migrate) to Ganache
+npx truffle migrate
+
+If you deploy again later, use npx truffle migrate --reset to redeploy from the start.
+In the output, find and copy the contract address:
+
+1_deploy.js
+===========
+   Deploying 'addition'
+   > transaction hash:    0x58eb...
+   > contract address:    0x64C2EdC6e01a5a61aC7DEabC57eFE0742C7A57e1 <-- COPY THIS
+   > block number:        3
+   > gas used:            146899
+   > total cost:          0.00046 ETH
+
+Note: The address is different for every deployment. Your 100 ETH balance drops slightly because
+deploying costs gas.
+Screenshot to take: full migrate output showing the contract address.
+
+==============================================================================
+Part C: Build the frontend
+==============================================================================
+
+Step 11: Create the frontend folder
+In the project root (not inside migrations or contracts) create a folder called frontend, with two files:
+index.html and app.js.
+
+Final folder structure:
+project/
+  contracts/addition.sol
+  migrations/1_deploy.js
+  build/contracts/addition.json
+  frontend/index.html
+  frontend/app.js
+  truffle-config.js
+
+Step 12: index.html (basic page)
+Create frontend/index.html:
+
+<!DOCTYPE html>
+<!-- Tells the browser this is an HTML5 page -->
+<html>
+<body>
+  <!-- Page heading -->
+  <h1>Addition DApp</h1>
+  <!-- First number box. id="num1" lets app.js find it -->
+  <input type="number" id="num1">
+  <!-- Second number box -->
+  <input type="number" id="num2">
+  <!-- Button. When clicked it runs addNumbers() from app.js -->
+  <button onclick="addNumbers()">Add</button>
+  <!-- Empty paragraph where app.js shows the answer -->
+  <p id="result"></p>
+  <!-- Load the Web3 library (lets JavaScript talk to the blockchain) -->
+  <script src="https://cdn.jsdelivr.net/npm/web3@1.10.0/dist/web3.min.js"></script>
+  <!-- Load our own code. Must come AFTER Web3 -->
+  <script src="app.js"></script>
+</body>
+</html>
+
+Step 13: app.js (as simple as possible)
+Create frontend/app.js:
+
+// Paste the contract address from the "truffle migrate" output here.
+// It changes every time you deploy.
+const address = "PASTE_YOUR_CONTRACT_ADDRESS_HERE";
+
+// ABI = description of the contract's functions. It tells Web3 that
+// "add" takes two numbers and returns one number.
+const abi = [
+  {
+    "inputs": [
+      { "name": "a", "type": "uint256" }, // first input
+      { "name": "b", "type": "uint256" }  // second input
+    ],
+    "name": "add",                        // function name
+    "outputs": [{ "name": "", "type": "uint256" }], // returns one number
+    "stateMutability": "pure",            // pure = no gas, no state
+    "type": "function"
+  }
+];
+
+// Connect directly to Ganache (same URL as the RPC SERVER in Ganache).
+const web3 = new Web3("http://127.0.0.1:7545");
+
+// Create a contract object from the ABI and address. Now we can call
+// its functions from JavaScript.
+const contract = new web3.eth.Contract(abi, address);
+
+// Runs when the Add button is clicked.
+async function addNumbers() {
+  // Read the two values typed into the input boxes
+  const n1 = document.getElementById("num1").value;
+  const n2 = document.getElementById("num2").value;
+
+  // Call the contract's add function.
+  // .call() = only read the answer: no transaction, no gas.
+  // "await" waits for the blockchain to reply.
+  const answer = await contract.methods.add(n1, n2).call();
+
+  // Show the answer on the page
+  document.getElementById("result").innerText = "Result: " + answer;
+}
+
+Note: You can get the ABI yourself from build/contracts/addition.json (the "abi" field). The version above is
+trimmed to just the add function.
+
+==============================================================================
+Step 14: Run it
+==============================================================================
+- Make sure Ganache is still running.
+- Right-click frontend/index.html in VS Code and choose Open with Live Server.
+- The page opens at http://127.0.0.1:5500/frontend/index.html.
+- Enter 12 and 23 and click Add.
+- You should see Result: 35.
+Screenshot to take: the browser showing Result: 35.
+
+==============================================================================
+Troubleshooting
+==============================================================================
+Problem                              Fix
+"truffle" is not recognized          Use npx truffle ... instead.
+Migration cannot connect             Start Ganache. Check that the port in truffle-config.js matches Ganache.
+invalid opcode on deploy             Set evmVersion: "paris" in truffle-config.js.
+Nothing happens when clicking Add    Open browser console (F12). Usually a wrong or stale contract address.
+"Web3 is not defined"                The Web3 script tag must come before app.js and needs internet.
+Artifact not found on migrate        Contract name in artifacts.require must match the contract name exactly (case-sensitive).
+MetaMask shows 0 ETH                 Select the Ganache network and import the correct private key.
+Result is empty after redeploy       Copy the new contract address into app.js.
+
+==============================================================================
+Quick viva revision
+==============================================================================
+Q: What is a smart contract?
+A: Code stored on a blockchain that runs automatically when called and cannot be changed after deployment.
+
+Q: What is Ganache?
+A: A local personal blockchain for development with free test accounts.
+
+Q: What is MetaMask?
+A: A browser wallet that stores accounts and connects websites to blockchain networks.
+
+Q: What is Truffle?
+A: A framework to compile, deploy and test Ethereum smart contracts.
+
+Q: What does pure mean?
+A: The function neither reads nor writes blockchain state, so it is free to call.
+
+Q: What is a migration?
+A: A script that deploys contracts. Files are run in numeric order, hence the number prefix.
+
+Q: What is the ABI?
+A: A JSON description of the contract functions, inputs and outputs, needed by Web3 to call them.
+
+Q: Why does the contract address change?
+A: Each deployment creates a new contract at a new address. Update app.js every time.
+
+Q: .call() vs .send()?
+A: .call() reads without a transaction (free). .send() creates a transaction that changes state and costs gas.
+
+Q: Why is MetaMask not used in this app.js?
+A: add is pure, so no signing or gas is needed. The page reads straight from Ganache. MetaMask is needed only for .send() transactions.
+
+Q: Why evmVersion paris?
+A: Newer compilers emit PUSH0, which older Ganache cannot run.
+
+Q: Why did the balance drop after deploying?
+A: Gas was paid for the deployment transaction.
+
+Q: Where is the compiled output?
+A: build/contracts/addition.json.
+
+Q: Can you edit a deployed contract?
+A: No. You deploy a new version at a new address.
+
