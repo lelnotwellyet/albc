@@ -1,0 +1,56 @@
+﻿Practical 1: Building a Simple Blockchain from Scratch in JavaScript (Node.js)
+
+Aim:
+Implement a foundational Blockchain in JavaScript using Node.js crypto module to understand:
+1. Block structure: Block ID, Data / Inputs, Result, Timestamp, Previous Hash, and Current Hash.
+2. Cryptographic hashing: Generating SHA-256 hashes based on block properties.
+3. Genesis Block: The initial block in the chain initialized with previous hash "0".
+4. Immutability & Chaining: Linking every new block to the hash of the latest block (getCBlock().hash).
+
+==============================================================================
+Files in this Practical
+==============================================================================
+1. add.js   & test1.js : Blockchain storing numerical addition operations.
+2. prime.js & test2.js : Blockchain verifying and storing Prime numbers.
+3. happy.js & test.js  : Blockchain validating and storing Happy numbers.
+
+==============================================================================
+Step-by-Step Instructions & Execution
+==============================================================================
+
+Prerequisites:
+- Node.js installed (check with `node --version`).
+
+1. Addition Blockchain:
+   - File: add.js
+     Defines class block (id, n, n1, result = n + n1, t, ph, hash) and class Blockchain.
+     Calculates SHA-256 hash across all properties.
+   - Run:
+     node test1.js
+
+2. Prime Number Blockchain:
+   - File: prime.js
+     Validates whether input n is prime (isPrime(n)).
+     Stores result and SHA-256 hash in each block.
+   - Run:
+     node test2.js
+
+3. Happy Number Blockchain:
+   - File: happy.js
+     Calculates sum of squares of digits until reaching 1 (happy) or looping (unhappy).
+     Conditionally appends only validated happy number blocks to the chain.
+   - Run:
+     node test.js
+
+==============================================================================
+Key Blockchain Concepts Demonstrated
+==============================================================================
+- SHA-256 Hashing:
+  `crypto.createHash('sha256').update(...).digest('hex')`
+  Any change to a block's data alters its hash, breaking the link to subsequent blocks.
+
+- Genesis Block (GBlock):
+  The first block in the blockchain, created with previous hash `ph = "0"`.
+
+- Previous Hash (ph):
+  Each new block links back to the previous block via `b.ph = this.getCBlock().hash`, ensuring chronological immutability.
