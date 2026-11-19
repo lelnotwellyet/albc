@@ -1,4 +1,4 @@
-﻿Practical 2: Blockchain Implementation in Python (Armstrong Numbers & Banking Transactions)
+﻿Practical 2: Blockchain Implementation in Python (Anagrams, Armstrong Numbers & Banking Transactions)
 
 Aim:
 Implement a Blockchain from scratch using Python (`hashlib` and `datetime`) to demonstrate:
@@ -10,12 +10,17 @@ Implement a Blockchain from scratch using Python (`hashlib` and `datetime`) to d
 ==============================================================================
 Files in this Practical
 ==============================================================================
-1. armstrong.py :
+1. anagram.py :
+   - Validates whether two words/strings are anagrams (contain identical letters in any order, e.g. "undertale" and "deltarune").
+   - Generates blocks recording the two words, validation result ("Anagram" / "Not Anagram"), previous hash, and SHA-256 hash.
+   - Includes `is_valid()` to verify cryptographic integrity across all blocks.
+
+2. armstrong.py :
    - Validates whether an integer is an Armstrong number (sum of each digit raised to the power of number of digits equals the original number, e.g. 153).
    - Generates blocks recording the number, validation result, and cryptographic hash.
    - Includes `is_valid()` to verify current hashes and previous hash continuity.
 
-2. transactions.py :
+3. transactions.py :
    - Simulates a decentralized banking transaction ledger.
    - Manages accounts with deposit and withdrawal operations, checking for sufficient balance.
    - Records each transaction as an immutable block (`i`, `acc`, `typ`, `amt`, `bal`, `ph`, `h`).
@@ -27,14 +32,21 @@ How to Run
 Prerequisites:
 - Python 3.x installed (check with `python --version`).
 
-1. Run the Armstrong Number Blockchain:
+1. Run the Anagram Blockchain:
+   python anagram.py
+
+   Expected Output:
+   Displays blocks with timestamps, words ("undertale" & "deltarune" -> "Anagram"), previous hashes, and current hashes, ending with:
+   Chain valid: True
+
+2. Run the Armstrong Number Blockchain:
    python armstrong.py
 
    Expected Output:
    Displays blocks with timestamps, original numbers, results ("Armstrong number" / "not Armstrong number"), previous hashes, and current hashes, ending with:
    Chain valid: True
 
-2. Run the Banking Transaction Blockchain:
+3. Run the Banking Transaction Blockchain:
    python transactions.py
 
    Expected Output:
@@ -45,7 +57,7 @@ Prerequisites:
 Core Blockchain Concepts Demonstrated
 ==============================================================================
 - Immutability:
-  Changing any transaction data in a previous block changes its calculated hash, which immediately invalidates all subsequent blocks because `cur.ph != prev.h`.
+  Changing any transaction or input data in a previous block changes its calculated hash, which immediately invalidates all subsequent blocks because `cur.ph != prev.h`.
 
 - Chain Validation Algorithm:
   Iterates from index 1 to length of chain:
